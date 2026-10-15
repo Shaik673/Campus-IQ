@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: campus-iq
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma db push && npx tsx prisma/seed.ts && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: https://campus-iq.onrender.com
+      - key: NEXT_PUBLIC_APP_NAME
+        value: CampusIQ
+      - key: GROK_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROK_API_URL
+        value: https://api.groq.com/openai/v1
+      - key: GROK_API_KEY
+        sync: false
