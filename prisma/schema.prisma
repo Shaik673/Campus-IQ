@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("USER") // USER, ADMIN
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  conversations Conversation[]
+  savedAnswers  SavedAnswer[]
+  feedback      Feedback[]
+  activities    Activity[]
+  quizAttempts  QuizAttempt[]
+  checklists    ChecklistProgress[]
+  preferences   UserPreference?
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserPreference {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  theme                 String  @default("dark")
+  language              String  @default("en")
+  responseStyle         String  @default("detailed")
+  retainHistory         Boolean @default(true)
+  showSourceReferences  Boolean @default(true)
+  emailNotifications    Boolean @default(false)
+  reducedMotion         Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  userId      String?
+  title       String    @default("New Conversation")
+  category    String?
+  isPinned    Boolean   @default(false)
+  isArchived  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // USER, ASSISTANT
+  content        String
+  sources        String?  // JSON array of source FAQ IDs
+  confidence     Float?
+  answerMode     String?  // VERIFIED_FAQ, AI_ASSISTED, UNAVAILABLE
+  helpful        Boolean?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  feedback     Feedback[]
+}
+
+model FAQ {
+  id           String   @id @default(cuid())
+  question     String
+  answer       String
+  category     String
+  subcategory  String?
+  keywords     String   // comma-separated
+  isActive     Boolean  @default(true)
+  viewCount    Int      @default(0)
+  helpfulCount Int      @default(0)
+  unhelpfulCount Int    @default(0)
+  lastUpdated  DateTime @default(now())
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+
+  savedAnswers SavedAnswer[]
+  feedback     Feedback[]
+}
+
+model SavedAnswer {
+  id         String   @id @default(cuid())
+  userId     String
+  faqId      String?
+  messageId  String?
+  title      String
+  content    String
+  category   String?
+  collection String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faq  FAQ? @relation(fields: [faqId], references: [id], onDelete: SetNull)
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  userId       String?
+  messageId    String?
+  faqId        String?
+  type         String   // HELPFUL, UNHELPFUL, REPORT
+  rating       Int?     // 1-5
+  comment      String?
+  reportReason String?  // OUTDATED, INCORRECT, INCOMPLETE, CONFUSING
+  isReviewed   Boolean  @default(false)
+  reviewedBy   String?
+  createdAt    DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  faq     FAQ?     @relation(fields: [faqId], references: [id], onDelete: SetNull)
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // ENQUIRY, CONVERSATION_OPENED, FAQ_SAVED, CATEGORY_VIEWED, QUIZ_COMPLETED, FEEDBACK_SUBMITTED
+  description String
+  metadata    String?  // JSON
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UnansweredQuestion {
+  id          String   @id @default(cuid())
+  question    String
+  userId      String?
+  sessionId   String?
+  category    String?
+  isResolved  Boolean  @default(false)
+  resolvedBy  String?
+  faqId       String?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  category   String
+  questions  String   // JSON
+  answers    String   // JSON
+  score      Int
+  total      Int
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChecklistProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  checklistId String
+  checkedItems String  // JSON array of checked item IDs
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checklistId])
+}
