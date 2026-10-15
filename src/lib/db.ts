@@ -25,6 +25,11 @@ function getDatabaseUrl(): string | undefined {
 
 const customUrl = getDatabaseUrl();
 
+// Ensure process.env.DATABASE_URL is never undefined in serverless runtime
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = customUrl || "file:./dev.db";
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
